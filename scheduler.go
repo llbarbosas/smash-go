@@ -16,11 +16,11 @@ type Scheduler struct {
 	stopChan chan struct{}
 }
 
-func (s *Scheduler) RunAfter(duration time.Duration, function TaskFunction) (string, error) {
-	return s.RunAt(time.Now().Add(duration), function)
+func (s *Scheduler) RunAfter(duration time.Duration, fn TaskFunction) (string, error) {
+	return s.RunAt(time.Now().Add(duration), fn)
 }
 
-func (s *Scheduler) RunAt(time time.Time, function TaskFunction) (string, error) {
+func (s *Scheduler) RunAt(time time.Time, fn TaskFunction) (string, error) {
 	id, err := gonanoid.New()
 
 	if err != nil {
@@ -31,13 +31,13 @@ func (s *Scheduler) RunAt(time time.Time, function TaskFunction) (string, error)
 		Schedule: Schedule{
 			NextRun: time,
 		},
-		Func: function,
+		Fn: fn,
 	}
 
 	return id, nil
 }
 
-func (s *Scheduler) RunEvery(duration time.Duration, function TaskFunction) (string, error) {
+func (s *Scheduler) RunEvery(duration time.Duration, fn TaskFunction) (string, error) {
 	id, err := gonanoid.New()
 
 	if err != nil {
@@ -50,7 +50,7 @@ func (s *Scheduler) RunEvery(duration time.Duration, function TaskFunction) (str
 			Duration:    duration,
 			NextRun:     time.Now().Add(duration),
 		},
-		Func: function,
+		Fn: fn,
 	}
 
 	return id, nil
@@ -121,12 +121,12 @@ type Schedule struct {
 
 type Task struct {
 	Schedule
-	Func TaskFunction
+	Fn TaskFunction
 }
 
 func (t *Task) Run() {
 	t.scheduleNextRun()
-	t.Func()
+	t.Fn()
 }
 
 func (t *Task) IsDue() bool {

@@ -2,23 +2,34 @@ package smash
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog"
 	"github.com/go-chi/render"
 )
 
 type ManagmentAPI struct {
-	handler http.HandlerFunc
+	http.HandlerFunc
 }
 
-func NewManagmentAPI(moduleManager *ModuleManager, bus *LocalBus) (*ManagmentAPI, error) {
+type ManagmentAPIConfig struct {
+	ModuleManager *ModuleManager
+	Bus           *LocalBus
+}
+
+func NewManagmentAPI(cfg ManagmentAPIConfig) (*ManagmentAPI, error) {
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+
+	/*logger :=*/
+	httplog.NewLogger("httplog-example", httplog.Options{
+		JSON: true,
+	})
+
+	// r.Use(httplog.RequestLogger(logger))
 
 	r.Post("/modules/load", func(w http.ResponseWriter, r *http.Request) {
 		var req ModuleLoadRequest
@@ -29,7 +40,7 @@ func NewManagmentAPI(moduleManager *ModuleManager, bus *LocalBus) (*ManagmentAPI
 			return
 		}
 
-		module, err := moduleManager.Load(req.Path)
+		module, err := cfg.ModuleManager.Load(req.Path)
 
 		if err != nil {
 			render.Status(r, 500)
@@ -44,7 +55,7 @@ func NewManagmentAPI(moduleManager *ModuleManager, bus *LocalBus) (*ManagmentAPI
 	})
 
 	r.Post("/modules/register", func(w http.ResponseWriter, r *http.Request) {
-		err := moduleManager.RegisterModules()
+		err := cfg.ModuleManager.RegisterModules()
 
 		if err != nil {
 			render.Status(r, 500)
@@ -55,30 +66,8 @@ func NewManagmentAPI(moduleManager *ModuleManager, bus *LocalBus) (*ManagmentAPI
 		render.Status(r, 200)
 	})
 
-	r.Get("/bus/emit", func(w http.ResponseWriter, r *http.Request) {
-		var req BusEmitRequest
-
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			render.Status(r, 400)
-			render.JSON(w, r, map[string]interface{}{"error": "invalid-input-error", "message": err.Error()})
-			return
-		}
-
-		ctx := context.Background()
-
-		err := bus.Emit(ctx, WithMessage(req.Message), LocalOnly)
-
-		if err != nil {
-			render.Status(r, 500)
-			render.JSON(w, r, map[string]interface{}{"error": "bus-emit-error", "message": err.Error()})
-			return
-		}
-
-		render.Status(r, 200)
-	})
-
 	return &ManagmentAPI{
-		handler: r.ServeHTTP,
+		HandlerFunc: r.ServeHTTP,
 	}, nil
 }
 
@@ -95,11 +84,13 @@ type BusEmitRequest struct {
 }
 
 type ManagmentAPIClient struct {
+	Addr   string
 	client *http.Client
 }
 
 func NewManagmentAPIClient(addr string) (*ManagmentAPIClient, error) {
 	return &ManagmentAPIClient{
+		Addr:   addr,
 		client: &http.Client{},
 	}, nil
 }
@@ -111,7 +102,7 @@ func (c ManagmentAPIClient) LoadModule(req ModuleLoadRequest) (*ModuleLoadRespon
 		return nil, err
 	}
 
-	res, err := http.Post("http://127.0.0.1:3000/modules/load", "application/json", bytes.NewBuffer(reqJson))
+	res, err := http.Post(fmt.Sprintf("%s/modules/load", c.Addr), "application/json", bytes.NewBuffer(reqJson))
 
 	if err != nil {
 		return nil, err
@@ -133,7 +124,7 @@ func (c ManagmentAPIClient) LoadModule(req ModuleLoadRequest) (*ModuleLoadRespon
 }
 
 func (c ManagmentAPIClient) RegisterModules() error {
-	res, err := http.Post("http://127.0.0.1:3000/modules/register", "application/json", new(bytes.Buffer))
+	res, err := http.Post(fmt.Sprintf("%s/modules/register", c.Addr), "application/json", new(bytes.Buffer))
 
 	if err != nil {
 		return err

@@ -1,6 +1,7 @@
 package smash
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"plugin"
@@ -66,6 +67,18 @@ func (mm *ModuleManager) Load(modulePath string) (*Module, error) {
 	}
 
 	mm.modules[module.Name] = module
+
+	_, err = mm.bus.Emit(context.Background(),
+		EmitOptions{
+			Message: Message{
+				Type:   "module:register",
+				Source: module.Name,
+			},
+		})
+
+	if err != nil {
+		return nil, err
+	}
 
 	return &module, nil
 }

@@ -1,16 +1,26 @@
 package smash
 
-import "log"
+import (
+	"log"
+	"net/http"
+)
 
 type Node struct {
 	moduleManager *ModuleManager
 	scheduler     *Scheduler
 	bus           *LocalBus
-	nodeNetwork   *NodeNetwork
+	managmentAPI  *ManagmentAPI
+
+	cfg NodeConfig
 }
 
-func NewNode() (*Node, error) {
-	bus, err := NewLocalBus()
+type NodeConfig struct {
+	BusAddr          string
+	ManagmentAPIAddr string
+}
+
+func NewNode(cfg NodeConfig) (*Node, error) {
+	bus, err := NewLocalBus(cfg.BusAddr)
 
 	if err != nil {
 		return nil, err
@@ -28,7 +38,10 @@ func NewNode() (*Node, error) {
 		return nil, err
 	}
 
-	nodeNetwork, err := NewNodeNetwork(bus, moduleManager)
+	managmentAPI, err := NewManagmentAPI(ManagmentAPIConfig{
+		Bus:           bus,
+		ModuleManager: moduleManager,
+	})
 
 	if err != nil {
 		return nil, err
@@ -36,9 +49,10 @@ func NewNode() (*Node, error) {
 
 	return &Node{
 		moduleManager: moduleManager,
-		nodeNetwork:   nodeNetwork,
 		scheduler:     scheduler,
 		bus:           bus,
+		managmentAPI:  managmentAPI,
+		cfg:           cfg,
 	}, nil
 }
 
@@ -46,17 +60,29 @@ func (n *Node) LoadModule(modulePath string) (*Module, error) {
 	return n.moduleManager.Load(modulePath)
 }
 
-func (n *Node) Run() error {
-	if err := n.moduleManager.RegisterModules(); err != nil {
-		return err
-	}
+func (n *Node) RegisterModules() error {
+	return n.moduleManager.RegisterModules()
+}
 
+func (n *Node) Link(remoteAddr string) (string, error) {
+	return n.bus.Link(&RemoteBus{
+		Addr: remoteAddr,
+	}, true)
+}
+
+func (n *Node) Run() error {
 	if err := n.scheduler.Start(); err != nil {
 		return err
 	}
 
 	go func() {
-		if err := n.nodeNetwork.Run(); err != nil {
+		if err := n.bus.Serve(); err != nil {
+			log.Println(err)
+		}
+	}()
+
+	go func() {
+		if err := http.ListenAndServe(n.cfg.ManagmentAPIAddr, n.managmentAPI); err != nil {
 			log.Println(err)
 		}
 	}()
