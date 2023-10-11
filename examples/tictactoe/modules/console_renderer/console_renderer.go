@@ -2,30 +2,30 @@ package main
 
 import (
 	"context"
+	"encoding/gob"
 	"fmt"
 
-	"github.com/llbarbosas/smash-tictactoe"
+	"github.com/llbarbosas/smash-go"
+	"github.com/llbarbosas/smash-go/examples/tictactoe/modules/state"
 )
 
 var (
 	Name = "ttt.renderer.console"
 )
 
-type State interface {
-	Board() []uint8
-}
-
 func Register(bus smash.Bus, scheduler *smash.Scheduler) error {
-	stateUpdateHandler, err := smash.NewHandler("state:update", func(ctx context.Context, msg smash.Message) {
-		state := msg.Payload.(State)
+	gob.Register(state.State{})
+
+	_, err := bus.RegisterHandler("state:update", func(ctx context.Context, msg smash.Message) {
+		state := msg.Payload.(state.State)
 		fmt.Print("\033[H\033[2J")
 
-		for i, place := range state.Board() {
+		for i, place := range state.Board {
 			if i%3 == 0 {
 				fmt.Println()
 			}
 
-			fmt.Print(place, "\t")
+			fmt.Print(RenderPlace(place), "\t")
 		}
 	})
 
@@ -33,11 +33,23 @@ func Register(bus smash.Bus, scheduler *smash.Scheduler) error {
 		return err
 	}
 
-	_, err = bus.RegisterHandler(stateUpdateHandler)
+	return nil
+}
 
-	if err != nil {
-		return err
+func RenderPlace(place uint8) string {
+	if place == 1 {
+		return "X"
 	}
 
-	return nil
+	if place == 2 {
+		return "O"
+	}
+
+	return "-"
+}
+
+func GetState(payload any) state.State {
+	state := payload.(state.State)
+
+	return state
 }

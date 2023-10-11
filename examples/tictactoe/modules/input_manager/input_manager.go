@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/llbarbosas/smash-tictactoe"
+	"github.com/llbarbosas/smash-go"
 )
 
 var (
@@ -27,8 +27,13 @@ func Register(bus smash.Bus, scheduler *smash.Scheduler) error {
 
 		bus.Emit(
 			context.Background(),
-			smash.WithDefaults("input:read", key),
-			smash.WithSource(Name),
+			smash.EmitOptions{
+				Message: smash.Message{
+					Type:    "input:read",
+					Payload: key,
+					Source:  Name,
+				},
+			},
 		)
 
 		// if key == "q" {

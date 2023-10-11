@@ -1,11 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/llbarbosas/smash-tictactoe"
+	"github.com/llbarbosas/smash-go"
 )
 
 func printHelp() {
@@ -16,7 +17,10 @@ func printHelp() {
 }
 
 func main() {
-	client, err := smash.NewManagmentAPIClient("http://127.0.0.1:3000")
+	addr := flag.String("addr", "127.0.0.1:6061", "link node to a remote node")
+	flag.Parse()
+
+	client, err := smash.NewManagmentAPIClient(fmt.Sprintf("http://%s", *addr))
 
 	if err != nil {
 		log.Fatal(err)
@@ -44,6 +48,17 @@ func main() {
 		case "s":
 			res, err := client.LoadModule(smash.ModuleLoadRequest{
 				Path: "./bin/modules/simulator.so",
+			})
+
+			if err != nil {
+				log.Println(err)
+			}
+
+			fmt.Println(res)
+
+		case "i":
+			res, err := client.LoadModule(smash.ModuleLoadRequest{
+				Path: "./bin/modules/input_manager.so",
 			})
 
 			if err != nil {
