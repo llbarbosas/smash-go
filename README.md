@@ -12,6 +12,8 @@ SMASH (Stackless Microkernel Architecture for SHared environments) is an archite
 
 ## Running
 
+https://github.com/llbarbosas/smash/assets/7810622/17b4b796-eb4a-4f65-938e-aecf2b78771c
+
 A TicTacToe example code is provided in [examples/tictactoe](./examples/tictactoe/). To run it:
 
 ```bash
